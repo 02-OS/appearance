@@ -3,8 +3,8 @@ import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
-ICONS_DIR = os.path.join(REPO_ROOT, "profile", "airootfs", "usr", "share", "icons", "02-OS", "scalable")
-HTML_OUT = os.path.join(REPO_ROOT, "02-OS-icons-preview.html")
+ICONS_DIR = os.path.join(REPO_ROOT, "base", "icons", "02-OS", "scalable")
+HTML_OUT = os.path.join(REPO_ROOT, "base", "02-OS-icons-preview.html")
 
 categories = ["apps", "places", "devices", "categories", "mimetypes", "status", "actions"]
 

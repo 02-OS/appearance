@@ -18,7 +18,7 @@ from icons_status_actions import get_status_icons, get_actions_icons
 REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
 TARGET_PATHS = [
-    os.path.join(REPO_ROOT, "profile", "airootfs", "usr", "share", "icons", "02-OS"),
+    os.path.join(REPO_ROOT, "base", "icons", "02-OS"),
 ]
 if "--install-user" in sys.argv or "--install" in sys.argv:
     TARGET_PATHS.append(os.path.expanduser("~/.local/share/icons/02-OS"))
@@ -249,7 +249,7 @@ def generate_theme_at(base_dir):
             f.write(svg_content)
 
     # Keep OS branding faithful to the approved boot logo, without a menu card.
-    with open(os.path.join(REPO_ROOT, "scripts", "boot-animation", "02-logo.svg")) as f:
+    with open(os.path.join(REPO_ROOT, "base", "02-logo.svg")) as f:
         logo_svg = f.read()
     logo_root = ET.fromstring(logo_svg)
     for dimension, size in (("width", "96"), ("height", "88")):

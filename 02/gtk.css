@@ -1,0 +1,15 @@
+window,
+.csd,
+headerbar,
+.titlebar {
+  border-radius: 12px;
+}
+
+button.minimize,
+button.maximize,
+button.close {
+  border-radius: 999px;
+  min-width: 14px;
+  min-height: 14px;
+  padding: 0;
+}
