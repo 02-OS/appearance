@@ -11,7 +11,7 @@ if [[ ! "${variant}" =~ ^(01|02|03)$ ]]; then
   exit 1
 fi
 if [[ -z "${dest}" || ! -d "${dest}" ]]; then
-  echo "Usage: apply.sh VARIANT AEROOTFS" >&2
+  echo "Usage: apply.sh VARIANT AIROOTFS" >&2
   exit 1
 fi
 
