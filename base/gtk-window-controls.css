@@ -1,0 +1,15 @@
+/* Shared window-control hit targets (minimum 24x24px) and keyboard focus ring. */
+button.minimize,
+button.maximize,
+button.close {
+  min-width: 24px;
+  min-height: 24px;
+  background-clip: content-box;
+}
+
+button.minimize:focus-visible,
+button.maximize:focus-visible,
+button.close:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+}

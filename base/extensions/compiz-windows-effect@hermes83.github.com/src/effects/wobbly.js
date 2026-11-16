@@ -30,6 +30,7 @@ import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { WobblyModel } from './wobbly_model.js';
+import { safe_speedup_divider } from '../../settings_data.js';
 
 export class WobblyEffect extends Clutter.DeformEffect {
     static {
@@ -71,7 +72,7 @@ export class WobblyEffect extends Clutter.DeformEffect {
 
         this.FRICTION = this.settingsData.FRICTION.get();
         this.SPRING_K = this.settingsData.SPRING_K.get();
-        this.SPEEDUP_FACTOR = this.settingsData.SPEEDUP_FACTOR.get();
+        this.SPEEDUP_FACTOR = safe_speedup_divider(this.settingsData.SPEEDUP_FACTOR.get());
         this.MASS = this.settingsData.MASS.get();
         this.X_TILES = 'maximized' === this.operationType ? 10 : this.settingsData.X_TILES.get();
         this.Y_TILES = 'maximized' === this.operationType ? 10 : this.settingsData.Y_TILES.get();
@@ -86,9 +87,12 @@ export class WobblyEffect extends Clutter.DeformEffect {
         super.vfunc_set_actor(actor);
 
         if (actor && !this.initialized) {
-            this.initialized = true;
-
             [this.width, this.height] = actor.get_size();
+            if (!(this.width > 0 && this.height > 0)) {
+                return;
+            }
+
+            this.initialized = true;
             [this.newX, this.newY] = actor.get_position();
             [this.actorX, this.actorY] = [this.newX, this.newY];
             [this.oldX, this.oldY] = [this.newX, this.newY];
@@ -226,7 +230,7 @@ export class WobblyEffect extends Clutter.DeformEffect {
             return;
         }
 
-        this.wobblyModel.step((msec - this.msecOld) / this.SPEEDUP_FACTOR);
+        this.wobblyModel.step((msec - this.msecOld) / safe_speedup_divider(this.SPEEDUP_FACTOR));
         this.msecOld = msec;
 
         let x, y;
@@ -274,6 +278,9 @@ export class WobblyEffect extends Clutter.DeformEffect {
     }
 
     vfunc_deform_vertex(w, h, v) {
+        if (!(this.width > 0 && this.height > 0) || !this.deformedObjects) {
+            return;
+        }
         [v.x, v.y] = this.deformedObjects[(v.ty * this.tilesY) >> 0][(v.tx * this.tilesX) >> 0];
         v.x += this.deltaX;
         v.y += this.deltaY;

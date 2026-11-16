@@ -29,7 +29,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { SettingsData } from './settings_data.js';
+import { SettingsData, settings_for_effect } from './settings_data.js';
 import { WobblyEffect } from './src/effects/wobbly.js';
 import { ResizeEffect } from './src/effects/resize.js';
 
@@ -73,6 +73,8 @@ export default class CompizWindowsEffectExtension extends Extension {
         };
         this.animationSettingsId = this.animationSettings.connect(
             'notify::enable-animations', stopUnavailableMotion);
+        this.reducedMotionId = St.ReducedMotion ? this.animationSettings.connect(
+            'notify::reduced-motion', stopUnavailableMotion) : null;
         this.sessionModeId = Main.sessionMode.connect('updated', stopUnavailableMotion);
 
         this.grabOpBeginId = global.display.connect('grab-op-begin', (display, window, op) => {
@@ -93,7 +95,7 @@ export default class CompizWindowsEffectExtension extends Extension {
             actor.remove_effect_by_name(EFFECT_NAME);
 
             if (Meta.GrabOp.MOVING === op || Meta.GrabOp.MOVING_UNCONSTRAINED === op) {
-                actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: this.settingsData, op: 'move'}));
+                actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: settings_for_effect(this.settingsData), op: 'move'}));
             } else {
                 actor.add_effect_with_name(EFFECT_NAME, new ResizeEffect({settingsData: this.settingsData, op: op}));
             }
@@ -128,7 +130,7 @@ export default class CompizWindowsEffectExtension extends Extension {
             let effect = actor.get_effect(EFFECT_NAME);
             if (!effect || effect.operationType != 'move') {
                 this.destroyActorEffect(actor);
-                actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: this.settingsData, op: 'unmaximized'}));
+                actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: settings_for_effect(this.settingsData), op: 'unmaximized'}));
             }
         });
 
@@ -172,13 +174,13 @@ export default class CompizWindowsEffectExtension extends Extension {
                         )
                     )
                 {
-                    actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: this.settingsData, op: 'maximized'}));
+                    actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: settings_for_effect(this.settingsData), op: 'maximized'}));
                 }
             } else {
                 let effect = actor.get_effect(EFFECT_NAME);
                 if (effect && 'move' === effect.operationType) {
                     this.destroyActorEffect(actor);
-                    actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: this.settingsData, op: 'move'}));
+                    actor.add_effect_with_name(EFFECT_NAME, new WobblyEffect({settingsData: settings_for_effect(this.settingsData), op: 'move'}));
                 }
             }
         });
@@ -189,6 +191,10 @@ export default class CompizWindowsEffectExtension extends Extension {
     }
 
     disable() {
+        if (this.reducedMotionId) {
+            this.animationSettings.disconnect(this.reducedMotionId);
+            this.reducedMotionId = null;
+        }
         if (this.animationSettingsId) {
             this.animationSettings.disconnect(this.animationSettingsId);
             this.animationSettingsId = null;
@@ -232,7 +238,9 @@ export default class CompizWindowsEffectExtension extends Extension {
     }
 
     motionAllowed() {
+        const reduced = this.animationSettings?.reduced_motion ?? this.animationSettings?.reducedMotion;
         return !!this.animationSettings?.enable_animations &&
+            (!St.ReducedMotion || reduced !== St.ReducedMotion.REDUCE) &&
             !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter;
     }
 

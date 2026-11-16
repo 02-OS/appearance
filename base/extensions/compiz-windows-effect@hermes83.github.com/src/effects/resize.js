@@ -141,8 +141,8 @@ export class ResizeEffect extends Clutter.DeformEffect {
 
     on_stop_effect_event(timer, msec) {
         this.i = timer.get_progress() * this.END_EFFECT_MULTIPLIER;
-        this.xDelta = Math.trunc(this.xDeltaStop * Math.sin(this.i) / Math.exp(this.i / this.END_EFFECT_DIVIDER, 2));
-        this.yDelta = Math.trunc(this.yDeltaStop * Math.sin(this.i) / Math.exp(this.i / this.END_EFFECT_DIVIDER, 2));
+        this.xDelta = Math.trunc(this.xDeltaStop * Math.sin(this.i) / Math.exp(this.i / this.END_EFFECT_DIVIDER));
+        this.yDelta = Math.trunc(this.yDeltaStop * Math.sin(this.i) / Math.exp(this.i / this.END_EFFECT_DIVIDER));
 
         this.invalidate();
     }
@@ -157,6 +157,9 @@ export class ResizeEffect extends Clutter.DeformEffect {
     }
 
     vfunc_deform_vertex(w, h, v) {
+        if (!(w > 0 && h > 0)) {
+            return;
+        }
         switch (this.operationType) {
             case Meta.GrabOp.RESIZING_W:
                 v.x += this.xDelta * (w - v.x) * Math.pow(v.y - this.yPickedUp, 2) / (Math.pow(h, 2) * w);

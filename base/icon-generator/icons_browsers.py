@@ -1,16 +1,14 @@
-"""Chrome and Brave icon names for the 02-OS theme.
-
-The installed pictures are the real Chrome wheel and Brave lion in
-assets/chrome.png and assets/brave.png, with no rounded card. They are not
-recolored to match the Files, Settings, Console, and Trash art. get_browser_icons()
-keeps the earlier glossy card geometry and is not what the theme installs.
+"""Browser marks adapted to the established 02-OS glossy vector cards.
 
 Chrome geometry: https://www.google.com/chrome/static/images/chrome-logo.svg
 Brave lion geometry: https://brave.com/static-assets/files/BrandBrave.zip
+(Brave-Logos/light background/AI/brave_black_lightbackground.ai, converted
+losslessly to SVG paths with pdftocairo). Browser marks remain recognizable;
+only the surrounding card and material lighting follow the 02-OS theme.
 """
 
-# Icon values used by native browser desktop files, plus common application IDs.
-# install_flat_browser_icons() writes a real copy of the flat picture for each name.
+# Icon values used by native browser .desktop files, plus common application IDs.
+# All aliases are relative symlinks inside scalable/apps.
 BROWSER_ICON_ALIASES = {
     "chrome.svg": "google-chrome.svg",
     "google-chrome-stable.svg": "google-chrome.svg",

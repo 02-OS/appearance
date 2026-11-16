@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-import base64
 import os
-import sys
+import re
 import shutil
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 # Import icon definition modules
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 from icons_apps import get_app_icons
-from icons_browsers import BROWSER_ICON_ALIASES
+from icons_browsers import BROWSER_ICON_ALIASES, get_browser_icons
 from icons_places import get_places_icons
 from icons_devices_categories import get_devices_icons, get_categories_icons, get_mimetypes_icons
 from icons_status_actions import get_status_icons, get_actions_icons
@@ -82,46 +82,78 @@ MaxSize=512
 Type=Scalable
 """
 
-def wrap_svg(defs, body, width=512, height=512):
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">
-  <defs>
-    <!-- Ambient Drop Shadow -->
+SHARED_DEFS = (
+    (
+        "shadow",
+        """    <!-- Ambient Drop Shadow -->
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.45"/>
-    </filter>
-    <filter id="folder-shadow" x="-20%" y="-20%" width="140%" height="140%">
+    </filter>""",
+    ),
+    (
+        "folder-shadow",
+        """    <filter id="folder-shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000000" flood-opacity="0.40"/>
-    </filter>
-    <filter id="pocket-shadow" x="-15%" y="-15%" width="130%" height="130%">
+    </filter>""",
+    ),
+    (
+        "pocket-shadow",
+        """    <filter id="pocket-shadow" x="-15%" y="-15%" width="130%" height="130%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.32"/>
-    </filter>
-    <filter id="glyph-shadow" x="-25%" y="-25%" width="150%" height="150%">
+    </filter>""",
+    ),
+    (
+        "glyph-shadow",
+        """    <filter id="glyph-shadow" x="-25%" y="-25%" width="150%" height="150%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.36"/>
-    </filter>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+    </filter>""",
+    ),
+    (
+        "glow",
+        """    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="12" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-
-    <!-- Glass Specular Rim Highlight -->
+    </filter>""",
+    ),
+    (
+        "specular-rim",
+        """    <!-- Glass Specular Rim Highlight -->
     <linearGradient id="specular-rim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff" stop-opacity="0.50"/>
       <stop offset="25%" stop-color="#ffffff" stop-opacity="0.18"/>
       <stop offset="70%" stop-color="#ffffff" stop-opacity="0.04"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0.12"/>
-    </linearGradient>
-
-    <!-- Top Gloss Sheen Overlay -->
+    </linearGradient>""",
+    ),
+    (
+        "top-gloss",
+        """    <!-- Top Gloss Sheen Overlay -->
     <linearGradient id="top-gloss" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
       <stop offset="40%" stop-color="#ffffff" stop-opacity="0.06"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
-    </linearGradient>
-    {defs}
-  </defs>
+    </linearGradient>""",
+    ),
+)
+
+FRAG_REF_RE = re.compile(r"""(?:url\(\s*["']?#|href\s*=\s*["']#)([^"'#)\s]+)""")
+
+
+def wrap_svg(defs, body, width=512, height=512):
+    referenced = set(FRAG_REF_RE.findall(f"{defs}\n{body}"))
+    active_shared = [snippet for def_id, snippet in SHARED_DEFS if def_id in referenced]
+    custom_defs = defs.strip()
+    if custom_defs:
+        active_shared.append(f"    {custom_defs}")
+    defs_block = ""
+    if active_shared:
+        joined = "\n".join(active_shared)
+        defs_block = f"\n  <defs>\n{joined}\n  </defs>"
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">{defs_block}
   {body}
 </svg>"""
+
 
 def squircle_card(bg_id, inner_art):
     return f"""
@@ -140,102 +172,49 @@ def squircle_card(bg_id, inner_art):
   <rect x="36" y="36" width="440" height="440" rx="104" ry="104" fill="none" stroke="url(#specular-rim)" stroke-width="2.5"/>
 """
 
+
+def resize_svg_dimensions(svg_text, width="96", height="88"):
+    ET.fromstring(svg_text)
+
+    def _update_root(match):
+        tag = match.group(0)
+        for attr, val in (("width", width), ("height", height)):
+            pattern = re.compile(rf'(\b{attr}\s*=\s*)(["\'])[^"\']*\2')
+            if pattern.search(tag):
+                tag = pattern.sub(rf'\g<1>"{val}"', tag, count=1)
+            else:
+                tag = tag[:-1] + f' {attr}="{val}">'
+        return tag
+
+    return re.sub(r"<svg\b[^>]*>", _update_root, svg_text, count=1)
+
+
 def generate_browser_icons_at(base_dir):
-    """Update only the flat Chrome and Brave icons, preserving every other theme file."""
+    """Update only browser art and aliases, preserving all other theme files."""
     apps_dir = os.path.join(base_dir, "scalable", "apps")
     os.makedirs(apps_dir, exist_ok=True)
-    install_flat_browser_icons(apps_dir)
-    print(f"Installed flat Chrome and Brave icons at: {apps_dir}")
-
-DOCK_ICON_NAMES = {
-    "files": (
-        "org.gnome.Nautilus.svg",
-        "nautilus.svg",
-        "system-file-manager.svg",
-        "file-manager.svg",
-    ),
-    "settings": (
-        "gnome-control-center.svg",
-        "org.gnome.Settings.svg",
-        "preferences-system.svg",
-        "settings.svg",
-        "systemsettings.svg",
-    ),
-    "console": (
-        "org.gnome.Console.svg",
-        "terminal.svg",
-        "utilities-terminal.svg",
-        "xfce4-terminal.svg",
-        "xterm.svg",
-    ),
-}
-
-
-def dock_icon_svg(asset_name):
-    """Embed one cropped dock icon. The sheet is the approved Files, Settings, and Console art."""
-    png = os.path.join(SCRIPT_DIR, "assets", f"{asset_name}.png")
-    encoded = base64.b64encode(open(png, "rb").read()).decode("ascii")
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">\n'
-        f'  <image width="512" height="512" href="data:image/png;base64,{encoded}"/>\n'
-        '</svg>\n'
-    )
-
-
-FLAT_BROWSER_NAMES = {
-    "chrome": (
-        "google-chrome.svg",
-        "chrome.svg",
-        "google-chrome-stable.svg",
-        "com.google.Chrome.svg",
-    ),
-    "brave": (
-        "brave-browser.svg",
-        "brave.svg",
-        "brave-desktop.svg",
-        "brave-browser-stable.svg",
-        "com.brave.Browser.svg",
-    ),
-}
-
-TRASH_ICON_NAMES = (
-    "user-trash.svg",
-    "user-trash-full.svg",
-)
-
-
-def install_embedded_icons(directory, names_by_asset):
-    for asset_name, names in names_by_asset.items():
-        svg = dock_icon_svg(asset_name)
-        for name in names:
-            path = os.path.join(directory, name)
-            if os.path.lexists(path):
-                os.remove(path)
-            with open(path, "w") as icon:
-                icon.write(svg)
-
-
-def install_dock_icons(apps_dir):
-    install_embedded_icons(apps_dir, DOCK_ICON_NAMES)
-
-
-def install_flat_browser_icons(apps_dir):
-    """Real Chrome and Brave marks, with no rounded card behind them."""
-    install_embedded_icons(apps_dir, FLAT_BROWSER_NAMES)
-
-
-def install_trash_icons(places_dir):
-    """Empty and full trash both use the approved flat can."""
-    install_embedded_icons(places_dir, {"trash": TRASH_ICON_NAMES})
+    for name, (defs, background, art) in get_browser_icons().items():
+        path = os.path.join(apps_dir, f"{name}.svg")
+        with open(path, "w", encoding="utf-8") as icon:
+            icon.write(wrap_svg(defs, squircle_card(background, art)))
+    for name, target in BROWSER_ICON_ALIASES.items():
+        path = os.path.join(apps_dir, name)
+        if os.path.lexists(path):
+            os.remove(path)
+        os.symlink(target, path)
+    print(f"Generated Chrome and Brave icons at: {apps_dir}")
 
 
 def generate_theme_at(base_dir):
     print(f"Generating 02-OS theme at: {base_dir}")
     os.makedirs(base_dir, exist_ok=True)
 
+    scalable_dir = os.path.join(base_dir, "scalable")
+    if os.path.isdir(scalable_dir):
+        shutil.rmtree(scalable_dir)
+
     # Write index.theme
-    with open(os.path.join(base_dir, "index.theme"), "w") as f:
+    with open(os.path.join(base_dir, "index.theme"), "w", encoding="utf-8") as f:
         f.write(INDEX_THEME)
 
     # 1. Apps
@@ -245,20 +224,16 @@ def generate_theme_at(base_dir):
     for name, (d, bg, art) in apps.items():
         svg_content = wrap_svg(d, squircle_card(bg, art))
         filepath = os.path.join(apps_dir, f"{name}.svg")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     # Keep OS branding faithful to the approved boot logo, without a menu card.
-    with open(os.path.join(REPO_ROOT, "base", "02-logo.svg")) as f:
-        logo_svg = f.read()
-    logo_root = ET.fromstring(logo_svg)
-    for dimension, size in (("width", "96"), ("height", "88")):
-        logo_svg = logo_svg.replace(
-            f'{dimension}="{logo_root.attrib[dimension]}"', f'{dimension}="{size}"', 1)
+    with open(os.path.join(REPO_ROOT, "base", "02-logo.svg"), encoding="utf-8") as f:
+        logo_svg = resize_svg_dimensions(f.read(), width="96", height="88")
     logo_path = os.path.join(apps_dir, "02os-logo.svg")
     if os.path.islink(logo_path):
         os.remove(logo_path)
-    with open(logo_path, "w") as f:
+    with open(logo_path, "w", encoding="utf-8") as f:
         f.write(logo_svg)
 
     # Symlinks for Apps
@@ -307,6 +282,7 @@ def generate_theme_at(base_dir):
         "system-info.svg": "fastfetch.svg",
         "utilities-system-monitor.svg": "fastfetch.svg",
         "gnome-system-monitor.svg": "fastfetch.svg",
+        "org.gnome.Settings.svg": "gnome-control-center.svg",
         "preferences-system.svg": "gnome-control-center.svg",
         "systemsettings.svg": "gnome-control-center.svg",
         "settings.svg": "gnome-control-center.svg",
@@ -336,15 +312,13 @@ def generate_theme_at(base_dir):
         "lock.svg": "system-lock-screen.svg",
         "help-browser.svg": "system-help.svg",
         "02os-guide.svg": "system-help.svg",
-        "system-software-update.svg": "software-properties.svg"
+        "system-software-update.svg": "software-properties.svg",
     }
     for src, target in app_symlinks.items():
         link_path = os.path.join(apps_dir, src)
         if os.path.exists(link_path) or os.path.islink(link_path):
             os.remove(link_path)
         os.symlink(target, link_path)
-    install_dock_icons(apps_dir)
-    install_flat_browser_icons(apps_dir)
 
     # 2. Places
     places_dir = os.path.join(base_dir, "scalable", "places")
@@ -352,7 +326,7 @@ def generate_theme_at(base_dir):
     places = get_places_icons()
     for name, (d, body) in places.items():
         svg_content = wrap_svg(d, body)
-        with open(os.path.join(places_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(places_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     places_symlinks = {
@@ -360,14 +334,13 @@ def generate_theme_at(base_dir):
         "user-desktop.svg": "folder-desktop.svg",
         "network-server.svg": "folder-remote.svg",
         "trashcan_empty.svg": "user-trash.svg",
-        "trashcan_full.svg": "user-trash-full.svg"
+        "trashcan_full.svg": "user-trash-full.svg",
     }
     for src, target in places_symlinks.items():
         link_path = os.path.join(places_dir, src)
         if os.path.exists(link_path) or os.path.islink(link_path):
             os.remove(link_path)
         os.symlink(target, link_path)
-    install_trash_icons(places_dir)
 
     # 3. Devices
     devices_dir = os.path.join(base_dir, "scalable", "devices")
@@ -375,14 +348,14 @@ def generate_theme_at(base_dir):
     devices = get_devices_icons()
     for name, (d, bg, art) in devices.items():
         svg_content = wrap_svg(d, squircle_card(bg, art))
-        with open(os.path.join(devices_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(devices_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     devices_symlinks = {
         "drive-harddisk-system.svg": "drive-harddisk.svg",
         "media-flash.svg": "drive-removable-media.svg",
         "drive-optical.svg": "media-optical.svg",
-        "video-display.svg": "computer.svg"
+        "video-display.svg": "computer.svg",
     }
     for src, target in devices_symlinks.items():
         link_path = os.path.join(devices_dir, src)
@@ -396,7 +369,7 @@ def generate_theme_at(base_dir):
     categories = get_categories_icons()
     for name, (d, bg, art) in categories.items():
         svg_content = wrap_svg(d, squircle_card(bg, art))
-        with open(os.path.join(cat_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(cat_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     # 5. Mimetypes
@@ -405,7 +378,7 @@ def generate_theme_at(base_dir):
     mimetypes = get_mimetypes_icons()
     for name, (d, body) in mimetypes.items():
         svg_content = wrap_svg(d, body)
-        with open(os.path.join(mime_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(mime_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     # 6. Status
@@ -414,7 +387,7 @@ def generate_theme_at(base_dir):
     statuses = get_status_icons()
     for name, (d, body) in statuses.items():
         svg_content = wrap_svg(d, body)
-        with open(os.path.join(status_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(status_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     # 7. Actions
@@ -423,7 +396,7 @@ def generate_theme_at(base_dir):
     actions = get_actions_icons()
     for name, (d, body) in actions.items():
         svg_content = wrap_svg(d, body)
-        with open(os.path.join(actions_dir, f"{name}.svg"), "w") as f:
+        with open(os.path.join(actions_dir, f"{name}.svg"), "w", encoding="utf-8") as f:
             f.write(svg_content)
 
     # Run gtk-update-icon-cache if available
@@ -433,7 +406,9 @@ def generate_theme_at(base_dir):
     except Exception as e:
         print(f"Note: gtk-update-icon-cache notice: {e}")
 
-if __name__ == "__main__":
+
+def main():
+    failed = []
     for target in TARGET_PATHS:
         try:
             if "--browsers-only" in sys.argv:
@@ -441,6 +416,18 @@ if __name__ == "__main__":
             else:
                 generate_theme_at(target)
         except Exception as err:
-            print(f"Error generating at {target}: {err}")
-            raise
-    print("Theme generation complete for all target paths!")
+            failed.append(target)
+            print(f"Error generating at {target}: {err}", file=sys.stderr)
+            continue
+        print(f"Theme generation complete for {target}")
+    if failed:
+        print(
+            "ERROR: required theme write failed for: " + ", ".join(failed),
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

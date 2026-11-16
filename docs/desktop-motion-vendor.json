@@ -1,5 +1,5 @@
 {
-  "target_shell": "50",
+  "target_shell": "51",
   "packages": [
     {
       "uuid": "dash-to-dock@micxgx.gmail.com",
@@ -9,7 +9,9 @@
       "sha256": "eb7647c03cad6dd1ac608da75ffdd2a2b9f8356b65bb468dc523d7ed3d26e5fc",
       "license": "GPL-2.0-or-later",
       "license_file": "COPYING",
-      "local_changes": ["Preserve the 02_OS icon hover fade at the end of stylesheet.css."]
+      "local_changes": [
+        "Preserve the 02_OS icon hover fade at the end of stylesheet.css."
+      ]
     },
     {
       "uuid": "flourish@orsso.github.io",
@@ -19,7 +21,10 @@
       "sha256": "9afa00b5adbdb7a555b854748315e809affe4cae79a8b770e4bfc2dcc024ea29",
       "license": "GPL-2.0-or-later",
       "license_file": "LICENSE",
-      "local_changes": []
+      "local_changes": [
+        "Disconnect actor callbacks before restoring translations and guard repeated disposal or queued callbacks during dock reconstruction.",
+        "Honor GNOME 51 reduced-motion preference across hover, launch and attention effects."
+      ]
     },
     {
       "uuid": "compiz-windows-effect@hermes83.github.com",
@@ -35,7 +40,9 @@
         "Gate unmaximize effects with maximize-effect, and use actor.meta_window consistently.",
         "Disconnect added handlers on disable and make overview cleanup repeatable.",
         "Clear the depth buffer before painting the flat mesh to keep window content visible on virtual/offscreen rendering targets.",
-        "Remove upstream trailing whitespace from bundled JavaScript files."
+        "Remove upstream trailing whitespace from bundled JavaScript files.",
+        "Declare GNOME 51 compatibility after API checks; honor the reduced-motion preference and stop active effects on changes.",
+        "Guard zero-size actors in wobbly.js, clamp mass >= 1 and allocate 24 springs in wobbly_model.js, remove extra Math.exp argument in resize.js, and constrain numeric schema keys with <range>."
       ]
     }
   ],
@@ -43,12 +50,42 @@
     {
       "uuid": "pop-shell@system76.com",
       "version": 2,
-      "files": ["window.js", "search.js", "panel_settings.js", "extension.js", "tiling.js", "maximization.js"],
+      "repository": "https://github.com/pop-os/shell",
+      "branch": "master_noble",
+      "upstream_url": "https://github.com/pop-os/shell/tree/master_noble",
+      "license": "GPL-3.0-only",
+      "license_file": "LICENSE",
+      "license_source": "https://raw.githubusercontent.com/pop-os/shell/master_noble/LICENSE",
+      "snapshot_commit_verified": false,
+      "inspected_upstream_head": "7898b65c20735057faf0797f8ed056704ca55f0d",
+      "content_sha256": "69c4cb19c9bee01fb365b19c84dd391406e238f6385713af1c06752f007dc28e",
+      "content_sha256_excludes": [
+        "PROVENANCE.md"
+      ],
+      "files": [
+        "config.js",
+        "ecs.js",
+        "extension.js",
+        "float_pattern.js",
+        "floating_exceptions/config.js",
+        "launcher.js",
+        "launcher_service.js",
+        "maximization.js",
+        "panel_settings.js",
+        "search.js",
+        "tiling.js",
+        "window.js"
+      ],
       "local_changes": [
         "Recheck active-hint on each border timer tick so turning the outline off keeps it hidden.",
+        "Escape user-selected floating-exception titles and classes, and match invalid persisted patterns literally.",
+        "Compare both entity slot and generation, allocate a fresh id when a slot is recycled, and fix Storage.insert bounds and World.unregister_storage index checks.",
+        "Close service.stdout instead of closing service.stdin twice in LauncherService.exit(), and drop a dead pop-launcher service on backend EOF so a later search can start a new one.",
+        "metadata.json lists shell-version 51 in addition to upstream master_noble versions 45-50.",
         "Use St.BoxLayout orientation instead of the removed vertical property on GNOME 51.",
-        "Only synchronize the X11 window-title menu control when it exists, while preserving decoration updates on Wayland.",
-        "Centralize full maximize/unmaximize calls: pass BOTH before Mutter 49 and no arguments on 49 or newer; collapse redundant directional unmaximize calls."
+        "Only synchronize the X11 window-title menu control when it exists, preserving decoration updates on Wayland.",
+        "Centralize full maximize/unmaximize calls: pass BOTH before Mutter 49 and no arguments on 49 or newer.",
+        "Activate an existing application window from launcher search instead of leaving it in the background."
       ]
     }
   ]
