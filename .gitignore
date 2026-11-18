@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+*.pyo
+base/icons/02-OS/icon-theme.cache

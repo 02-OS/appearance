@@ -10,7 +10,7 @@ picture-uri='file:///usr/share/backgrounds/02os/portal-halo.png'
 color-scheme='prefer-dark'
 gtk-theme='adw-gtk3-dark'
 icon-theme='02-OS'
-cursor-theme='Adwaita'
+cursor-theme='capitaine-cursors'
 font-name='Inter 11'
 enable-animations=true
 clock-show-weekday=true
@@ -48,7 +48,7 @@ toggle-tiled-right=@as []
 [org/gnome/shell]
 disable-user-extensions=false
 favorite-apps=['02os-install.desktop','org.gnome.Nautilus.desktop','google-chrome.desktop','org.gnome.Console.desktop','org.gnome.Settings.desktop']
-enabled-extensions=['dash-to-dock@micxgx.gmail.com','pop-shell@system76.com','flourish@orsso.github.io','compiz-windows-effect@hermes83.github.com']
+enabled-extensions=['dash-to-dock@micxgx.gmail.com','pop-shell@system76.com','flourish@orsso.github.io','compiz-windows-effect@hermes83.github.com','02-index-phase@02os','02-agent-status@02os']
 
 [org/gnome/shell/keybindings]
 toggle-message-tray=['<Super>v']
@@ -134,9 +134,13 @@ active-hint=false
 hint-color-rgba='rgba(0,0,0,0)'
 show-title=true
 toggle-tiling=['<Super>y']
+toggle-floating=['<Super>g']
+# Reserve Super+L for the screen lock, including after extension re-enable.
+focus-right=['<Super>Right', '<Super>KP_Right']
 
 [org/gnome/settings-daemon/plugins/media-keys]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/']
+screensaver=['<Super>l']
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/']
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
 name='Terminal'
@@ -147,3 +151,8 @@ binding='<Super>t'
 name='Files'
 command='nautilus'
 binding='<Super>f'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
+name='Settings'
+command='gnome-control-center'
+binding='<Super>i'

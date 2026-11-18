@@ -1,0 +1,11 @@
+{
+  "uuid": "02-shell-theme@02os",
+  "name": "02_OS Shell Theme",
+  "description": "Applies the selected 02_OS appearance shell stylesheet without requiring external user-theme.",
+  "shell-version": [
+    "49",
+    "50",
+    "51"
+  ],
+  "version": 1
+}

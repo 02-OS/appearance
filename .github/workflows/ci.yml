@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install system validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            dconf-cli \
+            gir1.2-gtk-3.0 \
+            gir1.2-gtk-4.0 \
+            gtk-update-icon-cache \
+            libglib2.0-bin \
+            python3-gi
+
+      - name: Check bash syntax
+        run: bash -n apply.sh
+
+      - name: Run appearance validation suite
+        run: python3 -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Run JavaScript regression tests
+        run: node tests/desktop_js_regressions.mjs
